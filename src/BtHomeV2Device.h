@@ -32,6 +32,13 @@ public:
 
     void clearMeasurementData();
 
+    bool addDeviceTypeId(uint16_t deviceTypeId);
+    bool addPacketId(uint8_t packetId);
+
+    // Currently not implemented in Home Assistant, but defined in BThome
+    bool addFirmwareVersion3(uint8_t major, uint8_t minor, uint8_t patch);
+    bool addFirmwareVersion4(uint8_t major, uint8_t minor, uint8_t patch, uint8_t build);
+
     /**
      * @brief Set a generic count value in the packet.
      * @param count Arbitrary count (e.g., event count).

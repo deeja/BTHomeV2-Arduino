@@ -20,6 +20,26 @@ BtHomeV2Device::BtHomeV2Device(const char *shortName, const char *completeName, 
 BtHomeV2Device::BtHomeV2Device(const char *shortName, const char *completeName, bool isTriggerBased, uint8_t const* const key, const uint8_t macAddress[BLE_MAC_ADDRESS_LENGTH], uint32_t counter) : _baseDevice(shortName, completeName, isTriggerBased, key, macAddress, counter){
 }
 
+bool BtHomeV2Device::addDeviceTypeId(uint16_t deviceTypeId)
+{
+    return _baseDevice.addUnsignedInteger(device_type_ID, deviceTypeId);
+}
+bool BtHomeV2Device::addPacketId(uint8_t packetId)
+{
+    return _baseDevice.addUnsignedInteger(packet_id, packetId);
+}
+
+bool BtHomeV2Device::addFirmwareVersion3(uint8_t major, uint8_t minor, uint8_t patch)
+{
+    uint32_t fwVersion = major << 16 | minor << 8 | patch;
+    return _baseDevice.addUnsignedInteger(device_type_ID, fwVersion);
+}
+bool BtHomeV2Device::addFirmwareVersion4(uint8_t major, uint8_t minor, uint8_t patch, uint8_t build)
+{
+    uint32_t fwVersion = major << 24 | minor << 16 | patch << 8 | build;
+    return _baseDevice.addUnsignedInteger(device_type_ID, fwVersion);
+}
+
 bool BtHomeV2Device::addTemperature_neg44_to_44_Resolution_0_35(float degreesCelsius)
 {
     return _baseDevice.addFloat(temperature_int8_scale_0_35, degreesCelsius);
