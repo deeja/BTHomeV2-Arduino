@@ -29,6 +29,10 @@ struct BtHomeType : public BtHomeState
 };
 
 // Now BtHomeType has 'id' from BtHomeState, plus its own fields.
+const BtHomeType device_type_ID = {0xF0, 1.0f, 2, false};
+const BtHomeType firmware_3_bytes = {0xF2, 1.0f, 3, false};
+const BtHomeType firmware_4_bytes = {0xF1, 1.0f, 4, false};
+const BtHomeType packet_id = {0x00, 1.0f, 1, false};
 
 const BtHomeType temperature_int8 = {0x57, 1.0f, 1, true};
 const BtHomeType temperature_int8_scale_0_35 = {0x58, 0.35f, 1, true};
