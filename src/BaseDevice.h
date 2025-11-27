@@ -1,7 +1,15 @@
+#ifndef BT_HOME_BASE_DEVICE_H
+#define BT_HOME_BASE_DEVICE_H
+
 #include "definitions.h"
+#ifndef __ZEPHYR__
 #include <Arduino.h>
-#include <data_types.h>
+#endif
+#include "data_types.h"
+#ifndef __ZEPHYR__
 #include "mbedtls/ccm.h"
+#endif
+
 static const size_t MAX_ADVERTISEMENT_SIZE = 31;
 static const size_t HEADER_SIZE = 9;
 static const size_t MAX_MEASUREMENT_SIZE = MAX_ADVERTISEMENT_SIZE - HEADER_SIZE;
@@ -28,6 +36,7 @@ public:
   bool addSignedInteger(BtHomeType sensor, int64_t value);
   bool addFloat(BtHomeType sensor, float value);
   bool addRaw(uint8_t sensor, uint8_t *value, uint8_t size);
+  uint8_t remainingBytes();
 
 private:
   bool pushBytes(uint64_t value2, BtHomeState sensor);
@@ -42,8 +51,12 @@ private:
   bool _triggerDevice = false;
   bool _useEncryption = false;
   uint32_t _counter = 1;
+#ifndef __ZEPHYR__
   mbedtls_ccm_context _encryptCTX;
+#endif  
   uint8_t _macAddress[BLE_MAC_ADDRESS_LENGTH];
   uint8_t bindKey[BIND_KEY_LEN];
   size_t getMeasurementByteArray(uint8_t sortedBytes[MAX_ADVERTISEMENT_SIZE]);
 };
+
+#endif // BT_HOME_BASE_DEVICE_H

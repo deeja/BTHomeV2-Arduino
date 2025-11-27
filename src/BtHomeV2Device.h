@@ -3,7 +3,9 @@
 
 // https://bthome.io/format/
 
+#ifndef __ZEPHYR__
 #include <Arduino.h>
+#endif
 #include "BaseDevice.h"
 
 /**
@@ -18,7 +20,7 @@ enum BATTERY_STATE
     BATTERY_STATE_LOW = 1
 };
 
-class BtHomeV2Device
+class BtHomeV2Device : public BaseDevice
 {
 public:
     /// @brief
@@ -199,8 +201,9 @@ public:
 
     bool addWaterLitres(float value);
 
-private:
-    BaseDevice _baseDevice;
+// Don't use GNU style inheritance, use C++ standard instead
+// private:
+//     BaseDevice _baseDevice;
 };
 
 #endif // BT_HOME_H

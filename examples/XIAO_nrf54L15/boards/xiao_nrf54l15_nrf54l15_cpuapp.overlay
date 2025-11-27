@@ -1,0 +1,77 @@
+/ {
+	zephyr,user {
+		io-channels = <&adc 0>,
+					  <&adc 1>,
+					  <&adc 2>,
+					  <&adc 3>,
+					  <&adc 4>,
+					  <&adc 5>,
+					  <&adc 6>,
+					  <&adc 7>;
+	};
+	bme280_pwr: bme280_pwr {
+		compatible = "regulator-fixed";
+		regulator-name = "bme280_pwr";
+        // GPIO D2 = P1.6 on the XIAO nRF54L15
+		enable-gpios = <&gpio1 6 GPIO_ACTIVE_HIGH>;
+	};
+};
+
+&wdt31 {
+	status = "okay";
+};
+
+dmic_dev: &pdm20 {
+    status = "okay";
+};
+
+&vbat_pwr {
+	/delete-property/ regulator-boot-on;
+};
+
+&rfsw_pwr {
+	/delete-property/ regulator-boot-on;
+};
+
+&pdm_imu_pwr{
+    /delete-property/ regulator-boot-on;
+};
+
+&temp {
+	status = "disabled";
+};
+
+&adc {
+	channel@0 {
+		reg = <0>;
+		zephyr,gain = "ADC_GAIN_2";
+		zephyr,reference = "ADC_REF_INTERNAL";
+		zephyr,acquisition-time = <0>;
+		zephyr,input-positive = <NRF_SAADC_AIN0>;
+		zephyr,input-negative = <NRF_SAADC_AIN1>;
+		zephyr,differential;
+		zephyr,resolution = <14>;
+	};
+
+	channel@7 {
+		reg = <7>;
+		zephyr,gain = "ADC_GAIN_1_4";
+		zephyr,reference = "ADC_REF_INTERNAL";
+		zephyr,acquisition-time = <0>;
+		zephyr,resolution = <14>;
+	};
+};
+
+&i2c22 {
+	bme280@76 {
+		compatible = "bosch,bme280";
+		reg = <0x76>;
+		zephyr,deferred-init;
+	};
+	zephyr,deferred-init;
+};
+
+/* Board alias often points xiao_serial -> &uart21; kill it to be safe. */
+&uart21 {
+	status = "disabled";
+};

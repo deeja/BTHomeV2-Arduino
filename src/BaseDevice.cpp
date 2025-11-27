@@ -1,5 +1,20 @@
+
+#ifdef __ZEPHYR__
+#include <cstring>
+#include <algorithm>
+#include <zephyr/bluetooth/crypto.h>
+#include <zephyr/logging/log.h>
+// strnlen not available in ZEPHYR?!?
+#define strnlen(s, n) strlen(s)  
+#else
 #include "Arduino.h"
+#endif	
+
 #include "BaseDevice.h"
+
+#ifdef __ZEPHYR__
+LOG_MODULE_REGISTER(BaseDevice, LOG_LEVEL_INF);
+#endif
 
 /// @brief
 /// @param shortName - Short name of the device - sent when space is limited. Max 12 characters.
@@ -27,8 +42,10 @@ BaseDevice::BaseDevice(const char *shortName, const char *completeName, bool isT
 
   memcpy(bindKey, key, sizeof(uint8_t) * BIND_KEY_LEN);
   memcpy(_macAddress, macAddress, BLE_MAC_ADDRESS_LENGTH);
+#ifndef __ZEPHYR__
   mbedtls_ccm_init(&this->_encryptCTX);
   mbedtls_ccm_setkey(&this->_encryptCTX, MBEDTLS_CIPHER_ID_AES, bindKey, ENCRYPTION_KEY_LENGTH * 8);
+#endif  
 }
 
 /// @brief Clear the measurement data.
@@ -36,6 +53,17 @@ void BaseDevice::resetMeasurement()
 {
   _sensorDataIdx = 0;
   _sensorData.clear();
+}
+
+/// @brief Return the number of remaining bytes in the sensor data packet for the given size.
+/// @details The sensor data packet has a maximum length defined by MEASUREMENT_MAX_LEN.
+/// @return Returns the number of remaining bytes.
+uint8_t BaseDevice::remainingBytes() 
+{
+  // the index is at the next entry point, so there is one byte extra
+  static const uint8_t CURRENT_BYTE = 1;
+
+  return (MAX_MEASUREMENT_SIZE - _sensorDataIdx) + CURRENT_BYTE - (_useEncryption ? ENCRYPTION_ADDITIONAL_BYTES : 0);  
 }
 
 /// @brief Check that there is enough space in the sensor data packet for the given size.
@@ -49,11 +77,7 @@ bool BaseDevice::hasEnoughSpace(BtHomeState sensor)
 
 bool BaseDevice::hasEnoughSpace(uint8_t size)
 {
-  // the index is at the next entry point, so there is one byte extra
-  static const uint8_t CURRENT_BYTE = 1;
-
-  int remainingBytes = (MAX_MEASUREMENT_SIZE - _sensorDataIdx) + CURRENT_BYTE - (_useEncryption ? ENCRYPTION_ADDITIONAL_BYTES : 0);
-  return remainingBytes >= size;
+  return BaseDevice::remainingBytes() >= size;
 }
 
 /// @brief Add a state or step value to the sensor data packet.
@@ -104,7 +128,7 @@ bool BaseDevice::addInteger(BtHomeType sensor, T value)
   {
     return false;
   }
-  auto scaledValue = static_cast<T>(static_cast<double>(value) / sensor.scale);
+  auto scaledValue = static_cast<T>(static_cast<double>(value) / static_cast<double>(sensor.scale));
   return pushBytes(scaledValue, sensor);
 }
 
@@ -121,7 +145,11 @@ bool BaseDevice::addFloat(BtHomeType sensor, float value)
 
   float factor = sensor.scale;
   float scaledValue = value / factor;
-  return pushBytes(static_cast<uint64_t>(scaledValue), sensor);
+  if (sensor.signed_value) {
+    return pushBytes(static_cast<int64_t>(scaledValue), sensor);
+  } else {
+    return pushBytes(static_cast<uint64_t>(scaledValue), sensor);
+  }
 }
 
 bool BaseDevice::pushBytes(uint64_t value2, BtHomeState sensor)
@@ -131,7 +159,7 @@ bool BaseDevice::pushBytes(uint64_t value2, BtHomeState sensor)
 
   for (uint8_t i = 0; i < sensor.byteCount; i++)
   {
-    vector.push_back(static_cast<byte>((value2 >> (8 * i)) & 0xff));
+    vector.push_back(static_cast<uint8_t>((value2 >> (8 * i)) & 0xff));
   }
 
   _sensorData.push_back(vector);
@@ -196,8 +224,13 @@ size_t BaseDevice::getAdvertisementData(uint8_t buffer[MAX_ADVERTISEMENT_SIZE])
   if (_useEncryption)
   {
 
+#ifdef __ZEPHYR__
+	// encryptionTag will be appended to ciphertext
+    uint8_t ciphertext[MAX_ADVERTISEMENT_SIZE + MIC_LEN];
+#else	
     uint8_t ciphertext[MAX_ADVERTISEMENT_SIZE];
     uint8_t encryptionTag[MIC_LEN];
+#endif	
     uint8_t nonce[NONCE_LEN];
     uint8_t *countPtr = (uint8_t *)(&this->_counter);
 
@@ -212,12 +245,16 @@ size_t BaseDevice::getAdvertisementData(uint8_t buffer[MAX_ADVERTISEMENT_SIZE])
     nonce[8] = FLAG_VERSION | FLAG_ENCRYPT;
     memcpy(&nonce[9], countPtr, MIC_LEN);
 
+#ifdef __ZEPHYR__
+	// encryptionTag will be appended to ciphertext
+    bt_ccm_encrypt(bindKey, nonce, sortedBytes, sortedBytesLength, NULL, 0, ciphertext, MIC_LEN);
+#else
     mbedtls_ccm_encrypt_and_tag(&_encryptCTX, sortedBytesLength, nonce, NONCE_LEN, 0, 0,
-                                &sortedBytes[0], &ciphertext[0], encryptionTag,
+                                 &sortedBytes[0], &ciphertext[0], encryptionTag,
                                 MIC_LEN);
-
+#endif
     for (uint8_t i = 0; i < _sensorDataIdx; i++)
-    {
+	{
       serviceData[serviceDataIndex++] = ciphertext[i];
     }
     // writeCounter
@@ -225,12 +262,18 @@ size_t BaseDevice::getAdvertisementData(uint8_t buffer[MAX_ADVERTISEMENT_SIZE])
     serviceData[serviceDataIndex++] = nonce[10];
     serviceData[serviceDataIndex++] = nonce[11];
     serviceData[serviceDataIndex++] = nonce[12];
-    this->_counter++;
+    this->_counter++;    
     // writeMIC
+#ifdef __ZEPHYR__
+    for (uint8_t i = 0; i < 4; i++) {
+      serviceData[serviceDataIndex++] = ciphertext[_sensorDataIdx + i];
+    }
+#else    
     serviceData[serviceDataIndex++] = encryptionTag[0];
     serviceData[serviceDataIndex++] = encryptionTag[1];
     serviceData[serviceDataIndex++] = encryptionTag[2];
     serviceData[serviceDataIndex++] = encryptionTag[3];
+#endif    
   }
   else
   {
@@ -245,7 +288,7 @@ size_t BaseDevice::getAdvertisementData(uint8_t buffer[MAX_ADVERTISEMENT_SIZE])
   buffer[bufferDataIndex++] = FLAG1;
   buffer[bufferDataIndex++] = FLAG2;
   buffer[bufferDataIndex++] = FLAG3;
-  byte sd_length = serviceDataIndex;     // Generate the length of the Service Data
+  uint8_t sd_length = serviceDataIndex;     // Generate the length of the Service Data
   buffer[bufferDataIndex++] = sd_length; // Add the length of the Service Data
 
   for (size_t i = 0; i < serviceDataIndex; i++)
@@ -259,7 +302,8 @@ size_t BaseDevice::getAdvertisementData(uint8_t buffer[MAX_ADVERTISEMENT_SIZE])
   // prefer long name
   size_t completeNameLength = strnlen(_completeName, MAX_LENGTH_COMPLETE_NAME);
   bool canFitLongName = bufferDataIndex + completeNameLength + TYPE_INDICATOR_SIZE + CURRENT_BYTE <= MAX_ADVERTISEMENT_SIZE;
-  if (canFitLongName)
+  // Don't try to append an empty completeName
+  if (canFitLongName && completeNameLength > 0)
   {
     buffer[bufferDataIndex++] = completeNameLength + TYPE_INDICATOR_SIZE;
     buffer[bufferDataIndex++] = COMPLETE_NAME;
@@ -269,7 +313,8 @@ size_t BaseDevice::getAdvertisementData(uint8_t buffer[MAX_ADVERTISEMENT_SIZE])
 
   size_t shortNameLength = strnlen(_shortName, MAX_LENGTH_SHORT_NAME);
   bool canFitShortName = bufferDataIndex + TYPE_INDICATOR_SIZE + shortNameLength + CURRENT_BYTE <= MAX_ADVERTISEMENT_SIZE;
-  if (canFitShortName)
+  // Don't try to append an empty shortName
+  if (canFitShortName && shortNameLength > 0)
   {
     buffer[bufferDataIndex++] = shortNameLength + TYPE_INDICATOR_SIZE;
     buffer[bufferDataIndex++] = SHORT_NAME; // 0x08 for short name

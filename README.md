@@ -88,6 +88,7 @@ Refer to the directory `./examples`  for specific library implementations.
 - NimBLE BLE Library  [NimBLE.ino](./examples/NimBLE/NimBLE.ino)
 - ESP32 native IDF calls to use BLE 5 for long range and extended payload. [ESP32C6_ESP_BLE5_LongRange_Firebeetle2.ino](./examples/ESP32C6_ESP_BLE5_LongRange_Firebeetle2/ESP32C6_ESP_BLE5_LongRange_Firebeetle2.ino)
 - Encryption [NimBLE_Encryption.ino](./examples/NimBLE_Encryption/NimBLE_Encryption.ino)
+- XIAO MG24 + BME280 temperature/pressure/humidity sensor using BLE Silabs protocol stack [XIAO_MG24.ino](./examples/XIAO_MG24/XIAO_MG24.ino)
 
 ## Usage
 

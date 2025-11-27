@@ -2,20 +2,41 @@
 #define BT_HOME_DATA_TYPES_H
 
 #pragma once
+
+#ifdef __ZEPHYR__
+#include <stdint.h>
+#include <stddef.h>
+#else
 #include <Arduino.h>
+#endif
+
 #include <vector>
 
 // You can use struct inheritance in C++ to inherit properties.
 // For example, BtHomeType can inherit from BtHomeState if you want to reuse the 'id' field:
 
+#ifdef __ZEPHYR__
+class BtHomeState
+#else
 struct BtHomeState
+#endif	
 {
+#ifdef __ZEPHYR__
+public:
+#endif
     uint8_t id;
     uint8_t byteCount;
 };
 
+#ifdef __ZEPHYR__
+class BtHomeType : public BtHomeState
+#else
 struct BtHomeType : public BtHomeState
+#endif	
 {
+#ifdef __ZEPHYR__
+public:    
+#endif
     float scale;       // Multiplier to apply before serializing
     bool signed_value; // true if value is signed, false if unsigned
 
