@@ -119,9 +119,18 @@ bool BaseDevice::addFloat(BtHomeType sensor, float value)
     return false;
   }
 
-  float factor = sensor.scale;
-  float scaledValue = value / factor;
-  return pushBytes(static_cast<uint64_t>(scaledValue), sensor);
+  float scaledValue = value / sensor.scale;
+
+  if (sensor.signed_value)
+  {
+    int64_t v = (int64_t)scaledValue;          // ujemne OK
+    return pushBytes((uint64_t)v, sensor);     // bajty polecą w U2
+  }
+  else
+  {
+    if (scaledValue < 0) scaledValue = 0;      // albo return false;
+    return pushBytes((uint64_t)scaledValue, sensor);
+  }
 }
 
 bool BaseDevice::pushBytes(uint64_t value2, BtHomeState sensor)
